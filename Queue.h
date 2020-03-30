@@ -26,7 +26,6 @@ int queueFull(Queue* q);
 int queueSize(Queue* q);
 int* head (struct Queue* q);
 int* tail(struct Queue* q);
-void queueBigger(struct Queue* q);
 void add(struct Queue* q, int* fd);
 int* del(struct Queue* q);
 
