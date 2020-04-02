@@ -5,11 +5,13 @@
 #include <string.h>
 #include <ctype.h>
 #include "Queue.h"
+#include <pthread.h>
 
 #define BUFF_SIZE 255
 #define DEFAULT_PORT 23
 #define WORK_QUEUE_SIZE 5
 #define LOG_QUEUE_SIZE 5
+#define NUM_THREADS 3
 
 //Global
 FILE* file; //dict fd
@@ -17,7 +19,7 @@ int port; //port
 int num_lines; //number of lines in dict
 char **dict; //stores words in dict
 Queue* work_queue; //stores socket descriptors
-Queue* log_queue; //stores log 
+Queue* log_queue; //stores log
 
 
 
@@ -44,8 +46,17 @@ int main(int argc, char **argv) {
     }
     readDict(); //reads dictionary file and stores it in char** dict
     work_queue = makeQueue(WORK_QUEUE_SIZE); //fixed queue of client socket descriptors
-    log_queue = makeQueue(LOG_QUEUE_SIZE);
+    log_queue = makeQueue(LOG_QUEUE_SIZE); //fixed cue of log
 
+    //after we make the dict data struct + both queues, make threads
+    pthread_t threads[NUM_THREADS];
+    void *ret;
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_create(&threads[i], NULL,func, arg of func) != 0) {
+            printf("Error creating thread. \n");
+            return(EXIT_FAILURE);
+        }
+    }
 
     char* word = (char*) malloc(sizeof(char) * BUFF_SIZE);
     char buff[BUFF_SIZE];
@@ -56,7 +67,18 @@ int main(int argc, char **argv) {
 
     //printf("dict[%d]: %s", 0, dict[0]);
 
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_join(threads[i], &ret) != 0) {
+            printf("Join error.\n");
+            return(EXIT_FAILURE);
+        }
+    }
+
     return 0;
+}
+
+void *func(void *arg) {
+    char *name = (char*) arg;
 }
 
 void readDict() { //reads dictionary and stores it in dict**
