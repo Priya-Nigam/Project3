@@ -49,10 +49,12 @@ int main(int argc, char **argv) {
     log_queue = makeQueue(LOG_QUEUE_SIZE); //fixed cue of log
 
     //after we make the dict data struct + both queues, make threads
-    pthread_t threads[NUM_THREADS];
+    //MAKE THREAD POOL
+    pthread_t worker_threads[NUM_THREADS];
     void *ret;
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (pthread_create(&threads[i], NULL,func, arg of func) != 0) {
+    int i;
+    for (i = 0; i < NUM_THREADS; i++) {
+        if (pthread_create(&worker_threads[i], NULL,func, arg of func) != 0) {
             printf("Error creating thread. \n");
             return(EXIT_FAILURE);
         }
@@ -67,8 +69,8 @@ int main(int argc, char **argv) {
 
     //printf("dict[%d]: %s", 0, dict[0]);
 
-    for (int i = 0; i < NUM_THREADS; i++) {
-        if (pthread_join(threads[i], &ret) != 0) {
+    for (i = 0; i < NUM_THREADS; i++) {
+        if (pthread_join(worker_threads[i], &ret) != 0) {
             printf("Join error.\n");
             return(EXIT_FAILURE);
         }
@@ -77,7 +79,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void *func(void *arg) {
+void *worker_thread_func(void *arg) {
     char *name = (char*) arg;
 }
 
