@@ -17,7 +17,7 @@ Queue* makeQueue(int QUEUE_SIZE) { //returns pointer to queue with initial capac
     //queue-> tail = 0; //empty buffer iff front == rear
     queue -> size = 0;
     //a queue is going to have an array of jobs
-    queue -> array = (int**) malloc(queue-> cap * sizeof(int*));
+    queue -> array = (int*) malloc(queue-> cap * sizeof(int));
     pthread_mutex_init(&queue->mutex, NULL);
     pthread_cond_init(&queue->empty_slot, NULL);
     pthread_cond_init(&queue->full_slot, NULL);
@@ -49,9 +49,9 @@ int queueSize(Queue* q) {
 }
 
 //get the first item in queue
-int* head (struct Queue* q) {
+int head (struct Queue* q) {
     if (queueEmpty(q)) {
-        return NULL;
+        return (int) NULL;
     } else {
         return (q-> array[q->head]);
     }
@@ -59,9 +59,9 @@ int* head (struct Queue* q) {
 
 //get last item added to queue
 //pointer to file descriptor
-int* tail(struct Queue* q) {
+int tail(struct Queue* q) {
     if (queueEmpty(q)) {
-        return NULL;
+        return (int) NULL;
     } else {
         return (q-> array[q->tail]);
     }
@@ -70,7 +70,7 @@ int* tail(struct Queue* q) {
 //to declare: Node* cat = new Node(7,2): means data = 7, 2nd priority
 
 //adds item to queue tail
-void add(struct Queue* q, int* fd) {
+void add(struct Queue* q, int fd) {
 //    if (queueFull(q))
 //        return;
     pthread_mutex_lock(&q -> mutex); //lock buffer's mutex
@@ -88,8 +88,8 @@ void add(struct Queue* q, int* fd) {
 
 //removes fd from queue and returns it
 //this is FIFO so removes the first item in queue
-int* del(struct Queue* q) {
-    int* fd;
+int del(struct Queue* q) {
+    int fd;
     pthread_mutex_lock(&q->mutex); //lock the lock
     while (queueEmpty(q)) { //wait for the queue to not be empty
         pthread_cond_wait(&q->full_slot, &q->mutex);

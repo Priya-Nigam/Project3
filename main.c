@@ -86,18 +86,24 @@ int main(int argc, char **argv) {
     char client_port[MAX_LINE];
     //char *port;
 
-    for (i = 0; i < NUM_THREADS; i++) {
-        if (pthread_create(&worker_threads[i], NULL,worker_thread_func, NULL) != 0) {
-            fprintf(stderr, "Error creating worker thread. \n");
-            return(EXIT_FAILURE);
-        }
-    }
+//    for (i = 0; i < NUM_THREADS; i++) {
+//        if (pthread_create(&worker_threads[i], NULL,worker_thread_func, NULL) != 0) {
+//            fprintf(stderr, "Error creating worker thread. \n");
+//            return(EXIT_FAILURE);
+//        }
+//    }
+//
+//    if (pthread_create(server_thread, NULL,server_thread_func, NULL) != 0) {
+//        printf("Error creating server thread. \n");
+//        return(EXIT_FAILURE);
+//    }
 
     listenfd=getlistenfd(port);
+    //to accept and distribute connection requests
     for (;;) {
         client_addr_size=sizeof(client_addr);
         if ((connectedfd=accept(listenfd, (struct sockaddr*)&client_addr, &client_addr_size))==-1) {
-            fprintf(stderr, "accept error\n");
+            fprintf(stderr, "accept error\n");    //connected_socket = accept(listening_socket);
             continue;
         }
         if (getnameinfo((struct sockaddr*)&client_addr, client_addr_size,
@@ -105,26 +111,18 @@ int main(int argc, char **argv) {
             fprintf(stderr, "error getting name information about client\n");
         } else {
             printf("accepted connection from %s:%s\n", client_name, client_port);
-        }
+        } //gets name information
         while ((bytes_read=readLine(connectedfd, line, MAX_LINE-1))>0) {
             printf("just read %s", line);
-            write(connectedfd, line, bytes_read);
+        //    write(connectedfd, line, bytes_read); //echos what was just read
+          //  add(work_queue, &connectedfd);//add connected_socket to the work queue
+//          //signal any sleeping workers that there's a new socket in the queue
         }
         printf("connection closed\n");
         close(connectedfd);
     }
 
-    //to accept and distribute connection requests
-//    while(true) {
-//        //connected_socket = accept(listening_socket);
-//        //add connected_socket to the work queue
-//        //signal any sleeping workers that there's a new socket in the queue
-//    }
 
-    if (pthread_create(server_thread, NULL,server_thread_func, NULL) != 0) {
-        printf("Error creating server thread. \n");
-        return(EXIT_FAILURE);
-    }
 
     char* word = (char*) malloc(sizeof(char) * BUFF_SIZE);
     char buff[BUFF_SIZE];
@@ -135,12 +133,12 @@ int main(int argc, char **argv) {
 
     //printf("dict[%d]: %s", 0, dict[0]);
 
-    for (i = 0; i < NUM_THREADS; i++) {
-        if (pthread_join(worker_threads[i], &ret) != 0) {
-            printf("Join error.\n");
-            return(EXIT_FAILURE);
-        }
-    }
+//    for (i = 0; i < NUM_THREADS; i++) {
+//        if (pthread_join(worker_threads[i], &ret) != 0) {
+//            printf("Join error.\n");
+//            return(EXIT_FAILURE);
+//        }
+//    }
 
     return 0;
 }
@@ -151,7 +149,7 @@ void server_thread_func() {
         while (queueEmpty(log_queue) != true) { //while the queue is not empty
             //int* socket = del(log_queue); //remove item from log queue
             //notify that there's an empty spot in the queue
-             write(log_file, buff, BUFF_SIZE);//write fd to log file
+             fprintf(log_file, buff, BUFF_SIZE);//write fd to log file
         }
     }
 
@@ -160,10 +158,10 @@ void worker_thread_func() {
     //printf("hello!\n");
     while (true) {
         while (queueEmpty(work_queue) != true) {
-            int *socket = del(work_queue);//remove a socket from the queue
+            int socket = del(work_queue);//remove a socket from the queue
             //notify that there's an empty spot in teh queue
             service_client(); //service client
-            close(&socket);//close socket
+            close(socket);//close socket
         }
     }
 }
