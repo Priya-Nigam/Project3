@@ -28,12 +28,12 @@ LogQueue* makeLogQueue(int QUEUE_SIZE) { //returns pointer to queue with initial
 //}
 
 //returns if Queue is empty
-int queueEmpty(LogQueue* q) {
+int LqueueEmpty(LogQueue* q) {
     return (q -> size == 0);
 }
 
 //returns if queue is full
-int queueFull(LogQueue* q) {
+int LqueueFull(LogQueue* q) {
     if (q-> size == q -> cap) {
         return 1;
     } else {
@@ -42,13 +42,13 @@ int queueFull(LogQueue* q) {
 }
 
 //returns what queue size is
-int queueSize(LogQueue* q) {
+int LqueueSize(LogQueue* q) {
     return q->size;
 }
 
 //get the first item in queue
-char* head (struct LogQueue* q) {
-    if (queueEmpty(q)) {
+char* L_head (struct LogQueue* q) {
+    if (LqueueEmpty(q)) {
         return  NULL;
     } else {
         return (q-> array[q->head]);
@@ -57,8 +57,8 @@ char* head (struct LogQueue* q) {
 
 //get last item added to queue
 //pointer to file descriptor
-char* tail(struct LogQueue* q) {
-    if (queueEmpty(q)) {
+char* L_tail(struct LogQueue* q) {
+    if (LqueueEmpty(q)) {
         return  NULL;
     } else {
         return (q-> array[q->tail]);
@@ -68,11 +68,11 @@ char* tail(struct LogQueue* q) {
 //to declare: Node* cat = new Node(7,2): means data = 7, 2nd priority
 
 //adds item to queue tail
-void add(struct LogQueue* q, char* buff) {
+void L_add(struct LogQueue* q, char* buff) {
 //    if (queueFull(q))
 //        return;
     pthread_mutex_lock(&q -> mutex); //lock buffer's mutex
-    while(queueFull(q)) {
+    while(LqueueFull(q)) {
         pthread_cond_wait(&q->empty_slot, &q->mutex); //until its not full
     }
     q->tail = (q->tail +1) % q->cap;
@@ -86,10 +86,10 @@ void add(struct LogQueue* q, char* buff) {
 
 //removes fd from queue and returns it
 //this is FIFO so removes the first item in queue
-char* del(struct LogQueue* q) {
+char* L_del(struct LogQueue* q) {
     char* word;
     pthread_mutex_lock(&q->mutex); //lock the lock
-    while (queueEmpty(q)) { //wait for the queue to not be empty
+    while (LqueueEmpty(q)) { //wait for the queue to not be empty
         pthread_cond_wait(&q->full_slot, &q->mutex);
     }
     word = (q -> array[q->head]);

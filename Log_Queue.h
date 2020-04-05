@@ -22,13 +22,13 @@ typedef struct LogQueue {
 }LogQueue;
 
 LogQueue* makeLogQueue(int INIT_QUEUE_CAP);
-int queueEmpty(LogQueue* q);
-int queueFull(LogQueue* q);
-int queueSize(LogQueue* q);
-char* head (struct LogQueue* q);
-char* tail(struct LogQueue* q);
-void add(struct LogQueue* q, char* buff);
-char* del(struct LogQueue* q);
+int LqueueEmpty(LogQueue* q);
+int LqueueFull(LogQueue* q);
+int LqueueSize(LogQueue* q);
+char* Lhead (struct LogQueue* q);
+char* Ltail(struct LogQueue* q);
+void L_add(struct LogQueue* q, char* buff);
+char* L_del(struct LogQueue* q);
 
 
 

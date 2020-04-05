@@ -46,8 +46,8 @@ ssize_t readLine(int fd, void *buffer, size_t n); //from fiore's notes
 
 void readDict();
 _Bool spellChecker(char* word);
-void worker_thread_func();
-void server_thread_func();
+void* worker_thread_func(void * arg);
+void* server_thread_func(void* arg);
 void service_client(int fd);
 
 int main(int argc, char **argv) {
@@ -87,19 +87,20 @@ int main(int argc, char **argv) {
     char line[MAX_LINE];
     char client_name[MAX_LINE];
     char client_port[MAX_LINE];
+    ssize_t  bytes_read;
     //char *port;
 
-//    for (i = 0; i < NUM_THREADS; i++) {
-//        if (pthread_create(&worker_threads[i], NULL,worker_thread_func, NULL) != 0) {
-//            fprintf(stderr, "Error creating worker thread. \n");
-//            return(EXIT_FAILURE);
-//        }
-//    }
-//
-//    if (pthread_create(server_thread, NULL,server_thread_func, NULL) != 0) {
-//        printf("Error creating server thread. \n");
-//        return(EXIT_FAILURE);
-//    }
+    for (i = 0; i < NUM_THREADS; i++) {
+        if (pthread_create(&worker_threads[i], NULL,&worker_thread_func, NULL) != 0) {
+            fprintf(stderr, "Error creating worker thread. \n");
+            return(EXIT_FAILURE);
+        }
+    }
+
+    if (pthread_create(&server_thread, NULL,&server_thread_func, NULL) != 0) {
+        printf("Error creating server thread. \n");
+        return(EXIT_FAILURE);
+    }
 
     listenfd=getlistenfd(port);
     //to accept and distribute connection requests
@@ -115,15 +116,13 @@ int main(int argc, char **argv) {
         } else {
             printf("accepted connection from %s:%s\n", client_name, client_port);
         } //gets name information
-        while ((bytes_read=readLine(connectedfd, line, MAX_LINE-1))>0) {
-            spellChecker(line);
+//        while ((bytes_read=readLine(connectedfd, line, MAX_LINE-1))>0) {
+//            spellChecker(line);
       //      printf("just read %s", line);
         //    write(connectedfd, line, bytes_read); //echos what was just read
-       //     add(work_queue, connectedfd);//add connected_socket to the work queue
+        add(work_queue, connectedfd);//add connected_socket to the work queue
 //          //signal any sleeping workers that there's a new socket in the queue
-        }
-        printf("connection closed\n");
-        close(connectedfd);
+//        }
     }
 
 
@@ -137,35 +136,36 @@ int main(int argc, char **argv) {
 
     //printf("dict[%d]: %s", 0, dict[0]);
 
-//    for (i = 0; i < NUM_THREADS; i++) {
-//        if (pthread_join(worker_threads[i], &ret) != 0) {
-//            printf("Join error.\n");
-//            return(EXIT_FAILURE);
-//        }
-//    }
+    for (i = 0; i < NUM_THREADS; i++) {
+        if (pthread_join(worker_threads[i], &ret) != 0) {
+            printf("Join error.\n");
+            return(EXIT_FAILURE);
+        }
+    }
 
     return 0;
 }
 
-void server_thread_func() {
-    char buff[BUFF_SIZE];
+void* server_thread_func(void* arg) {
+    char* buff;
     while (true) {
-        while (queueEmpty(log_queue) != true) { //while the queue is not empty
-            int socket = del(log_queue); //remove item from log queue
+        while (LqueueEmpty(log_queue) != true) { //while the queue is not empty
+            buff = L_del(log_queue); //remove item from log queue
             //notify that there's an empty spot in the queue
-            //fprintf(log_file, buff, BUFF_SIZE);//write fd to log file
+            fprintf(log_file, buff, BUFF_SIZE);//write fd to log file
         }
     }
 
 }
-void worker_thread_func() {
+void* worker_thread_func(void * arg) {
     //printf("hello!\n");
     while (true) {
         while (queueEmpty(work_queue) != true) {
             int socket = del(work_queue);//remove a socket from the queue
-            //notify that there's an empty spot in teh queue
+            // notify that there's an empty spot in teh queue
             service_client(socket); //service client
             close(socket);//close socket
+            printf("connection closed\n");
         }
     }
 }
@@ -173,24 +173,20 @@ void worker_thread_func() {
 void service_client(int fd) {
     ssize_t bytes_read;
     char word[BUFF_SIZE];
-    while ((bytes_read=readLine(fd, word, BUFF_SIZE))>0) {
-            //read word from the socket
+    while ((bytes_read=readLine(fd, word, BUFF_SIZE))>0) { //read word from the socket
             char result[BUFF_SIZE];
             read(fd, word, BUFF_SIZE);
             strcat(result, word);
             if (spellChecker(word)) {
                 strcat(result, " OKAY\n");
                 printf("%s",result);
-                write(fd, result, BUFF_SIZE);
-                //echo word back on socket concatenated with OK
+                write(fd, result, BUFF_SIZE); //echo word back on socket concatenated with OK
             } else {
                 strcat(result, " MISSPELLED\n");
                 printf("%s",result);
-                write(fd, result, BUFF_SIZE);
-                //echo word back on socket concatenated with "MISSPELLED"
+                write(fd, result, BUFF_SIZE); //echo word back on socket concatenated with "MISSPELLED"
             }
-            add(log_queue, result);
-            //write word and socket response value (ok or mispelled) to log queue
+            L_add(log_queue, result); //write word and socket response value (ok or mispelled) to log queue
     }
 }
 
