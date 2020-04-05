@@ -1,3 +1,4 @@
+#include "Log_Queue.h"
 #include <stdio.h>
 //use telnet 127.0.0.1 port to connect
 
@@ -5,6 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "Queue.h"
+#include "Log_Queue.h"
 #include <pthread.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -34,8 +36,10 @@ char* port; //port
 int num_lines; //number of lines in dict
 char **dict; //stores words in dict
 Queue* work_queue; //stores socket descriptors
-Queue* log_queue; //stores log
+LogQueue* log_queue; //stores log
 FILE* log_file; //log file
+
+
 int getlistenfd(char*); //from fiore's notes
 ssize_t readLine(int fd, void *buffer, size_t n); //from fiore's notes
 
@@ -44,7 +48,7 @@ void readDict();
 _Bool spellChecker(char* word);
 void worker_thread_func();
 void server_thread_func();
-void service_client();
+void service_client(int fd);
 
 int main(int argc, char **argv) {
     if (argc < 2) { //if no command line arguments, uses default dictionary + port else uses given dict + port
@@ -66,7 +70,7 @@ int main(int argc, char **argv) {
     }
     readDict(); //reads dictionary file and stores it in char** dict
     work_queue = makeQueue(WORK_QUEUE_SIZE); //fixed queue of client socket descriptors
-    log_queue = makeQueue(LOG_QUEUE_SIZE); //fixed cue of log
+    log_queue = makeLogQueue(LOG_QUEUE_SIZE); //fixed cue of log
     log_file = fopen("log.txt", "w+");
 
     //after we make the dict data struct + both queues, make threads
@@ -81,7 +85,6 @@ int main(int argc, char **argv) {
     struct sockaddr_storage client_addr;
     socklen_t client_addr_size;
     char line[MAX_LINE];
-    ssize_t bytes_read;
     char client_name[MAX_LINE];
     char client_port[MAX_LINE];
     //char *port;
@@ -113,9 +116,10 @@ int main(int argc, char **argv) {
             printf("accepted connection from %s:%s\n", client_name, client_port);
         } //gets name information
         while ((bytes_read=readLine(connectedfd, line, MAX_LINE-1))>0) {
-            printf("just read %s", line);
+            spellChecker(line);
+      //      printf("just read %s", line);
         //    write(connectedfd, line, bytes_read); //echos what was just read
-          //  add(work_queue, &connectedfd);//add connected_socket to the work queue
+       //     add(work_queue, connectedfd);//add connected_socket to the work queue
 //          //signal any sleeping workers that there's a new socket in the queue
         }
         printf("connection closed\n");
@@ -147,9 +151,9 @@ void server_thread_func() {
     char buff[BUFF_SIZE];
     while (true) {
         while (queueEmpty(log_queue) != true) { //while the queue is not empty
-            //int* socket = del(log_queue); //remove item from log queue
+            int socket = del(log_queue); //remove item from log queue
             //notify that there's an empty spot in the queue
-             fprintf(log_file, buff, BUFF_SIZE);//write fd to log file
+            //fprintf(log_file, buff, BUFF_SIZE);//write fd to log file
         }
     }
 
@@ -160,23 +164,34 @@ void worker_thread_func() {
         while (queueEmpty(work_queue) != true) {
             int socket = del(work_queue);//remove a socket from the queue
             //notify that there's an empty spot in teh queue
-            service_client(); //service client
+            service_client(socket); //service client
             close(socket);//close socket
         }
     }
 }
 
-void service_client() {
-    //while(there's a word left to read) {
+void service_client(int fd) {
+    ssize_t bytes_read;
+    char word[BUFF_SIZE];
+    while ((bytes_read=readLine(fd, word, BUFF_SIZE))>0) {
             //read word from the socket
-            char* word = NULL;
+            char result[BUFF_SIZE];
+            read(fd, word, BUFF_SIZE);
+            strcat(result, word);
             if (spellChecker(word)) {
+                strcat(result, " OKAY\n");
+                printf("%s",result);
+                write(fd, result, BUFF_SIZE);
                 //echo word back on socket concatenated with OK
             } else {
+                strcat(result, " MISSPELLED\n");
+                printf("%s",result);
+                write(fd, result, BUFF_SIZE);
                 //echo word back on socket concatenated with "MISSPELLED"
             }
+            add(log_queue, result);
             //write word and socket response value (ok or mispelled) to log queue
-    //}
+    }
 }
 
 void readDict() { //reads dictionary and stores it in dict**
