@@ -1,0 +1,59 @@
+MANUAL: PROJECT 3 DEVELOPING A NETWORKED SPELL CHECKER
+By Priya Nigam, CIS3207
+
+Thank you for choosing to use this networked spell checker.
+
+
+
+
+
+I. Program Introduction
+        This program is a networked spell check server that uses multi-threaded programming and synchronization. The
+        server reads sequences of words and if the word is in dictionary, it's considered to be spelled properly. This
+        server program operation consists of a main thread, a pool of worker threads, and another server
+        thread that writes to a log file. This log file can be accessed and contains each word along with if it was
+        spelled properly or not. This program should be able to handle the client connections of at least 3 servers at
+        once.
+II. Program Design ****
+◦Describe your program design – this should be very detailed!
+
+IV. Program Implementation
+        To implement this program, type "make" in a directory where the makefile is present. Then, you may run the
+        program my_shell using ./spellchecker
+
+        The program will continue to run and ask for commands until you can exit by typing "quit".
+
+V. Program Documentation
+        This program, otherwise known as Project 2, was completed on 4/8/20 for Dr. Fiore's CIS 3207 class under
+        the guidance of TA Shakeel Alibhai by Priya Nigam.
+
+        The github for this page (private) is: https://github.com/Priya-Nigam/Project3
+
+VI. Testing Methods + Results of Applying Test ****
+
+◦Explain your testing method/how you know that your program works
+        To test this shell, I tried a wide variety of commands and tried to also test the effects of running the shell
+        for an extended period of time.
+
+        Firstly, to test if a batch file would work as input, I created a batch file and had an array of commands. After
+        making sure those commands worked, I switched up the order of the commands and used pause to have the
+        shell open for longer and made sure that all of those commands still worked. Then, I did the same with the input commands.
+
+        Specifically, I first tested that all of the built in commands worked and that those that implemented output
+        redirection did so correctly. Then, I tested the non built in commands and made sure that those worked alone
+        and with various arguments. This was also tested for output and input redirection, first testing each alone and then
+        in combination of input and output redirection. I tested what would happen if a blank line was given, invalid input, etc.
+        These tests were done in varying orders, multiple times each in order to make sure that the shell was robust.
+
+        To test the pipe, I used various commands with varying numbers of arguments and ensured that the pipe worked in all
+        cases. I also made sure that in any of the non-built in commands, the zombies were being reaped by checking for exit statuses and
+        using IFEXITED() manually.
+
+        To test for background execution, I used a few commands that required a lot of time to execute and determined if other
+        commands were able to execute while these were executing. I did this at various times while the shell was running and ensured
+        that if an error did occur, the shell would continue to work and not exit or caust some sort of segmentation fault, etc.
+
+        The results of all these tests were as expected. While my shell did not work 100% when running it for very extended periods of time, it
+        ran as expected in these situations about 70% of the time. The exact reasons behind while they did not work
+        as expected 30% of the time could be due to issues with the zombie reaping, misuse of memory allocation, or perhaps
+        some internal issues like with garbage collection.

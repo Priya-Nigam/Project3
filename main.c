@@ -17,6 +17,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
+#include <arpa/inet.h>
 
 #define BUFF_SIZE 255
 #define WORK_QUEUE_SIZE 5
@@ -38,6 +39,7 @@ char **dict; //stores words in dict
 Queue* work_queue; //stores socket descriptors
 LogQueue* log_queue; //stores log
 FILE* log_file; //log file
+
 
 
 int getlistenfd(char*); //from fiore's notes
@@ -72,6 +74,7 @@ int main(int argc, char **argv) {
     work_queue = makeQueue(WORK_QUEUE_SIZE); //fixed queue of client socket descriptors
     log_queue = makeLogQueue(LOG_QUEUE_SIZE); //fixed cue of log
     log_file = fopen("log.txt", "w+");
+
 
     //after we make the dict data struct + both queues, make threads
     //MAKE THREAD POOL
@@ -142,6 +145,7 @@ int main(int argc, char **argv) {
             return(EXIT_FAILURE);
         }
     }
+    pthread_join(server_thread, &ret);
 
     return 0;
 }
@@ -173,20 +177,25 @@ void* worker_thread_func(void * arg) {
 void service_client(int fd) {
     ssize_t bytes_read;
     char word[BUFF_SIZE];
+
     while ((bytes_read=readLine(fd, word, BUFF_SIZE))>0) { //read word from the socket
-            char result[BUFF_SIZE];
+            char* resulting = (char *) malloc(sizeof(char) * BUFF_SIZE);
+            //char* resulting;
             read(fd, word, BUFF_SIZE);
-            strcat(result, word);
+            strncat(resulting, word, strlen(word)-1);
+            //strcat(resulting, word);
             if (spellChecker(word)) {
-                strcat(result, " OKAY\n");
-                printf("%s",result);
-                write(fd, result, BUFF_SIZE); //echo word back on socket concatenated with OK
+                strcat(resulting, " OKAY\n");
+                printf("%s",resulting);
+                write(fd, resulting, strlen(resulting)); //echo word back on socket concatenated with OK
             } else {
-                strcat(result, " MISSPELLED\n");
-                printf("%s",result);
-                write(fd, result, BUFF_SIZE); //echo word back on socket concatenated with "MISSPELLED"
+                strcat(resulting, " MISSPELLED\n");
+                printf("%s",resulting);
+                write(fd, resulting, strlen(resulting)); //echo word back on socket concatenated with "MISSPELLED"
             }
-            L_add(log_queue, result); //write word and socket response value (ok or mispelled) to log queue
+            L_add(log_queue, resulting); //write word and socket response value (ok or mispelled) to log queue
+          //  resulting = "";
+            free(resulting);
     }
 }
 
@@ -214,7 +223,7 @@ _Bool spellChecker(char* word) {
     for (int i = 0; i < num_lines; i++) {
         if (strcmp(token, dict[i]) == 0) { //are the same
             in_dictionary = 1;
-            printf(" %s is in dictionary!", word);
+           // printf(" %s is in dictionary!", word);
         }
     }
     return in_dictionary;
