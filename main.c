@@ -18,6 +18,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #define BUFF_SIZE 255
 #define WORK_QUEUE_SIZE 5
@@ -38,8 +39,7 @@ int num_lines; //number of lines in dict
 char **dict; //stores words in dict
 Queue* work_queue; //stores socket descriptors
 LogQueue* log_queue; //stores log
-FILE* log_file; //log file
-
+int log_fd;//log file descriptor
 
 
 int getlistenfd(char*); //from fiore's notes
@@ -73,15 +73,18 @@ int main(int argc, char **argv) {
     readDict(); //reads dictionary file and stores it in char** dict
     work_queue = makeQueue(WORK_QUEUE_SIZE); //fixed queue of client socket descriptors
     log_queue = makeLogQueue(LOG_QUEUE_SIZE); //fixed cue of log
-    log_file = fopen("log.txt", "w+");
-
+    if ((log_fd = open("log.txt", O_WRONLY|O_CREAT|O_APPEND, S_IRWXU|S_IRWXG|S_IRWXO)) == -1) {
+        printf("could not open log file.");
+    }
 
     //after we make the dict data struct + both queues, make threads
     //MAKE THREAD POOL
     pthread_t worker_threads[NUM_THREADS];
     pthread_t server_thread;
     void *ret;
-    int i;
+    int i=0;
+    char* input;
+    input = (char*) malloc(sizeof(char) * BUFF_SIZE);
 
     int listenfd,	       /* listen socket descriptor */
             connectedfd;       /* connected socket descriptor */
@@ -93,6 +96,12 @@ int main(int argc, char **argv) {
     ssize_t  bytes_read;
     //char *port;
 
+
+    if (pthread_create(&server_thread, NULL,&server_thread_func, NULL) != 0) {
+        printf("Error creating server thread. \n");
+        return(EXIT_FAILURE);
+    }
+
     for (i = 0; i < NUM_THREADS; i++) {
         if (pthread_create(&worker_threads[i], NULL,&worker_thread_func, NULL) != 0) {
             fprintf(stderr, "Error creating worker thread. \n");
@@ -100,14 +109,11 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (pthread_create(&server_thread, NULL,&server_thread_func, NULL) != 0) {
-        printf("Error creating server thread. \n");
-        return(EXIT_FAILURE);
-    }
 
     listenfd=getlistenfd(port);
     //to accept and distribute connection requests
-    for (;;) {
+
+    while(true) {
         client_addr_size=sizeof(client_addr);
         if ((connectedfd=accept(listenfd, (struct sockaddr*)&client_addr, &client_addr_size))==-1) {
             fprintf(stderr, "accept error\n");    //connected_socket = accept(listening_socket);
@@ -119,25 +125,21 @@ int main(int argc, char **argv) {
         } else {
             printf("accepted connection from %s:%s\n", client_name, client_port);
         } //gets name information
-//        while ((bytes_read=readLine(connectedfd, line, MAX_LINE-1))>0) {
-//            spellChecker(line);
-      //      printf("just read %s", line);
-        //    write(connectedfd, line, bytes_read); //echos what was just read
         add(work_queue, connectedfd);//add connected_socket to the work queue
 //          //signal any sleeping workers that there's a new socket in the queue
-//        }
     }
 
 
 
-    char* word = (char*) malloc(sizeof(char) * BUFF_SIZE);
-    char buff[BUFF_SIZE];
+//    char* word = (char*) malloc(sizeof(char) * BUFF_SIZE);
+//    char buff[BUFF_SIZE];
     //word = "A";
 //    while (fscanf(stdin, buff)) {
 //        spellChecker(word);
 //    }
 
     //printf("dict[%d]: %s", 0, dict[0]);
+//
 
     for (i = 0; i < NUM_THREADS; i++) {
         if (pthread_join(worker_threads[i], &ret) != 0) {
@@ -147,20 +149,28 @@ int main(int argc, char **argv) {
     }
     pthread_join(server_thread, &ret);
 
-    return 0;
+    exit(0);
+    //return 0;
 }
 
 void* server_thread_func(void* arg) {
     char* buff;
+    char* tokens;
     while (true) {
         while (LqueueEmpty(log_queue) != true) { //while the queue is not empty
             buff = L_del(log_queue); //remove item from log queue
             //notify that there's an empty spot in the queue
-            fprintf(log_file, buff, BUFF_SIZE);//write fd to log file
+            tokens = strtok(buff, "\n\t");
+            tokens = strcat(buff, "\n");
+            write(log_fd, tokens, strlen(tokens));
+            fsync(log_fd);
+            //log file can write it just doesn't write until end
+            //exit(0);
         }
     }
-
+    return arg;
 }
+
 void* worker_thread_func(void * arg) {
     //printf("hello!\n");
     while (true) {
@@ -172,30 +182,28 @@ void* worker_thread_func(void * arg) {
             printf("connection closed\n");
         }
     }
+  return arg;
 }
 
 void service_client(int fd) {
     ssize_t bytes_read;
     char word[BUFF_SIZE];
-
-    while ((bytes_read=readLine(fd, word, BUFF_SIZE))>0) { //read word from the socket
-            char* resulting = (char *) malloc(sizeof(char) * BUFF_SIZE);
-            //char* resulting;
-            read(fd, word, BUFF_SIZE);
-            strncat(resulting, word, strlen(word)-1);
-            //strcat(resulting, word);
-            if (spellChecker(word)) {
-                strcat(resulting, " OKAY\n");
-                printf("%s",resulting);
-                write(fd, resulting, strlen(resulting)); //echo word back on socket concatenated with OK
+    char* tokens;
+    while ((bytes_read=readLine(fd, word, BUFF_SIZE))>0 && (strcmp(word, "QUIT\n") != 0)) { //read word from the socket
+//            printf("just read %s\n", word);
+//            write(fd, word, strlen(word));
+//            L_add(log_queue,word);
+            tokens = strtok(word, "\n\t");
+            if (spellChecker(tokens)) {
+                strcat(tokens, " OKAY\n");
+                printf("%s",tokens);
+                write(fd, tokens, strlen(tokens)); //echo word back on socket concatenated with OK
             } else {
-                strcat(resulting, " MISSPELLED\n");
-                printf("%s",resulting);
-                write(fd, resulting, strlen(resulting)); //echo word back on socket concatenated with "MISSPELLED"
+                strcat(tokens, " MISSPELLED\n");
+                printf("%s",tokens);
+                write(fd, tokens, strlen(tokens)); //echo word back on socket concatenated with "MISSPELLED"
             }
-            L_add(log_queue, resulting); //write word and socket response value (ok or mispelled) to log queue
-          //  resulting = "";
-            free(resulting);
+            L_add(log_queue, tokens); //write word and socket response value (ok or mispelled) to log queue
     }
 }
 
